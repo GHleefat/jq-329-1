@@ -21,6 +21,7 @@ export interface TreeState {
   offset: { x: number; y: number };
   text: string;
   selectedNodeId: string | null;
+  canvasSize: { width: number; height: number };
 }
 
 export interface ParsedLine {

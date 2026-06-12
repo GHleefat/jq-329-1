@@ -8,10 +8,10 @@ interface LayoutConfig {
 }
 
 const DEFAULT_CONFIG: LayoutConfig = {
-  nodeWidth: 180,
-  nodeHeight: 56,
-  horizontalGap: 60,
-  verticalGap: 80,
+  nodeWidth: 100,
+  nodeHeight: 40,
+  horizontalGap: 14,
+  verticalGap: 40,
 };
 
 function getSubtreeWidth(

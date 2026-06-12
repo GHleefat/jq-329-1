@@ -34,22 +34,28 @@ interface TreeStore extends TreeState {
   updateNodePosition: (nodeId: string, position: NodePosition) => void;
   resetLayout: () => void;
   setSelectedNode: (nodeId: string | null) => void;
-  fitToView: () => void;
+  fitToView: (canvasWidth?: number, canvasHeight?: number) => void;
+  setCanvasSize: (width: number, height: number) => void;
 }
 
 export const useTreeStore = create<TreeStore>((set, get) => ({
   nodes: initialParsed.nodes,
   positions: initialPositions,
   rootId: initialParsed.rootId,
-  scale: 1,
-  offset: { x: 0, y: 0 },
+  scale: 0.5,
+  offset: { x: 50, y: 50 },
   text: DEFAULT_TEXT,
   selectedNodeId: null,
+  canvasSize: { width: 800, height: 600 },
 
   setText: (text: string) => {
     const { nodes, rootId } = parseIndentedText(text);
     const positions = calculateLayout(nodes, rootId);
     set({ text, nodes, positions, rootId, selectedNodeId: null });
+    setTimeout(() => {
+      const { canvasSize } = get();
+      get().fitToView(canvasSize.width, canvasSize.height);
+    }, 0);
   },
 
   setScale: (scale: number) => {
@@ -69,17 +75,24 @@ export const useTreeStore = create<TreeStore>((set, get) => ({
   },
 
   resetLayout: () => {
-    const { nodes, rootId } = get();
+    const { nodes, rootId, canvasSize } = get();
     const positions = calculateLayout(nodes, rootId);
     set({ positions, scale: 1, offset: { x: 0, y: 0 } });
+    setTimeout(() => {
+      get().fitToView(canvasSize.width, canvasSize.height);
+    }, 0);
   },
 
   setSelectedNode: (nodeId: string | null) => {
     set({ selectedNodeId: nodeId });
   },
 
-  fitToView: () => {
-    const { positions } = get();
+  setCanvasSize: (width: number, height: number) => {
+    set({ canvasSize: { width, height } });
+  },
+
+  fitToView: (canvasWidth?: number, canvasHeight?: number) => {
+    const { positions, canvasSize } = get();
     if (positions.size === 0) return;
 
     let minX = Infinity;
@@ -98,25 +111,25 @@ export const useTreeStore = create<TreeStore>((set, get) => ({
     const treeWidth = maxX - minX + padding * 2;
     const treeHeight = maxY - minY + padding * 2;
 
-    set((state) => {
-      const canvasWidth =
-        typeof window !== "undefined" ? window.innerWidth - 400 : 800;
-      const canvasHeight =
-        typeof window !== "undefined" ? window.innerHeight - 80 : 600;
+    const cw = canvasWidth ?? canvasSize.width;
+    const ch = canvasHeight ?? canvasSize.height;
 
-      const scaleX = canvasWidth / treeWidth;
-      const scaleY = canvasHeight / treeHeight;
-      const scale = Math.min(scaleX, scaleY, 1.5);
+    if (cw <= 0 || ch <= 0) return;
 
-      const offsetX =
-        -(minX - padding) * scale + (canvasWidth - treeWidth * scale) / 2;
-      const offsetY =
-        -(minY - padding) * scale + (canvasHeight - treeHeight * scale) / 2;
+    const scaleX = cw / treeWidth;
+    const scaleY = ch / treeHeight;
+    const calculatedScale = Math.min(scaleX, scaleY, 1.2);
+    const minScale = 0.3;
+    const finalScale = Math.max(calculatedScale, minScale);
 
-      return {
-        scale,
-        offset: { x: offsetX, y: offsetY },
-      };
+    const offsetX =
+      -(minX - padding) * finalScale + (cw - treeWidth * finalScale) / 2;
+    const offsetY =
+      -(minY - padding) * finalScale + (ch - treeHeight * finalScale) / 2;
+
+    set({
+      scale: finalScale,
+      offset: { x: offsetX, y: offsetY },
     });
   },
 }));

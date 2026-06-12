@@ -108,14 +108,14 @@ function TreeNode({
         dominantBaseline="middle"
         fill="white"
         fontFamily="system-ui, -apple-system, sans-serif"
-        fontSize={14}
+        fontSize={13}
         fontWeight={500}
         style={{
           pointerEvents: "none",
           userSelect: "none",
         }}
       >
-        {label.length > 18 ? label.substring(0, 17) + "…" : label}
+        {label.length > 10 ? label.substring(0, 9) + "…" : label}
       </text>
     </g>
   );
@@ -286,10 +286,31 @@ export function TreeCanvas() {
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      useTreeStore.getState().fitToView();
-    }, 50);
-    return () => clearTimeout(timer);
+    const doFit = () => {
+      if (containerRef.current) {
+        const w = containerRef.current.clientWidth;
+        const h = containerRef.current.clientHeight;
+        if (w > 0 && h > 0) {
+          useTreeStore.getState().setCanvasSize(w, h);
+          useTreeStore.getState().fitToView(w, h);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (!doFit()) {
+      const timer = setTimeout(doFit, 100);
+      return () => clearTimeout(timer);
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      doFit();
+    });
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    return () => resizeObserver.disconnect();
   }, []);
 
   const nodeArray = Array.from(nodes.entries());
@@ -297,7 +318,7 @@ export function TreeCanvas() {
   return (
     <div
       ref={containerRef}
-      className="flex-1 relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950"
+      className="w-full h-full relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950"
       onWheel={handleWheel}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

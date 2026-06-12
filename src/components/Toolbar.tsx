@@ -79,7 +79,7 @@ export function Toolbar() {
         </button>
 
         <button
-          onClick={fitToView}
+          onClick={() => fitToView()}
           className="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors ml-1"
           title="适应画布"
         >

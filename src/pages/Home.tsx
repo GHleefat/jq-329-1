@@ -4,7 +4,7 @@ import { TreeCanvas } from "../components/TreeCanvas";
 import { useState } from "react";
 
 export default function Home() {
-  const [panelWidth, setPanelWidth] = useState(380);
+  const [panelWidth, setPanelWidth] = useState(300);
   const [isResizing, setIsResizing] = useState(false);
 
   const handleMouseDown = () => {
