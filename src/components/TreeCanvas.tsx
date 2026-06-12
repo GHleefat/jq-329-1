@@ -58,8 +58,14 @@ function TreeNode({
   return (
     <g
       transform={`translate(${position.x}, ${position.y})`}
-      onMouseDown={(e) => onMouseDown(e, id)}
-      onClick={() => onClick(id)}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        onMouseDown(e, id);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(id);
+      }}
       style={{ cursor: "grab" }}
     >
       {isSelected && (
@@ -171,7 +177,12 @@ export function TreeCanvas() {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [isDraggingNode, setIsDraggingNode] = useState(false);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = useState({
+    clientX: 0,
+    clientY: 0,
+    nodeX: 0,
+    nodeY: 0,
+  });
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
@@ -198,21 +209,15 @@ export function TreeCanvas() {
 
   const handleCanvasMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (
-        e.target === svgRef.current ||
-        ((e.target as SVGElement).tagName === "rect" &&
-          (e.target as SVGElement).getAttribute("class")?.includes("canvas-bg"))
-      ) {
-        setIsPanning(true);
-        setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-        setSelectedNode(null);
-      }
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      setSelectedNode(null);
     },
     [offset, setSelectedNode],
   );
 
   const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       if (isPanning) {
         setOffset({
           x: e.clientX - panStart.x,
@@ -221,13 +226,13 @@ export function TreeCanvas() {
       } else if (isDraggingNode && dragNodeId) {
         const nodePos = positions.get(dragNodeId);
         if (nodePos) {
-          const newX = (e.clientX - offset.x - dragOffset.x) / scale;
-          const newY = (e.clientY - offset.y - dragOffset.y) / scale;
+          const deltaX = (e.clientX - dragStartPos.clientX) / scale;
+          const deltaY = (e.clientY - dragStartPos.clientY) / scale;
 
           updateNodePosition(dragNodeId, {
             ...nodePos,
-            x: newX - nodePos.width / 2,
-            y: newY - nodePos.height / 2,
+            x: dragStartPos.nodeX + deltaX,
+            y: dragStartPos.nodeY + deltaY,
           });
         }
       }
@@ -237,10 +242,9 @@ export function TreeCanvas() {
       isDraggingNode,
       panStart,
       dragNodeId,
-      dragOffset,
+      dragStartPos,
       positions,
       scale,
-      offset,
       setOffset,
       updateNodePosition,
     ],
@@ -252,30 +256,36 @@ export function TreeCanvas() {
     setDragNodeId(null);
   }, []);
 
+  useEffect(() => {
+    if (isPanning || isDraggingNode) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isPanning, isDraggingNode, handleMouseMove, handleMouseUp]);
+
   const handleNodeMouseDown = useCallback(
     (e: React.MouseEvent, nodeId: string) => {
       e.stopPropagation();
 
       const nodePos = positions.get(nodeId);
-      if (!nodePos || !svgRef.current) return;
+      if (!nodePos) return;
 
-      const rect = svgRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-
-      const nodeCenterX = (nodePos.x + nodePos.width / 2) * scale + offset.x;
-      const nodeCenterY = (nodePos.y + nodePos.height / 2) * scale + offset.y;
-
-      setDragOffset({
-        x: mouseX - nodeCenterX,
-        y: mouseY - nodeCenterY,
+      setDragStartPos({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        nodeX: nodePos.x,
+        nodeY: nodePos.y,
       });
 
       setIsDraggingNode(true);
       setDragNodeId(nodeId);
       setSelectedNode(nodeId);
     },
-    [positions, scale, offset, setSelectedNode],
+    [positions, setSelectedNode],
   );
 
   const handleNodeClick = useCallback(
@@ -320,9 +330,6 @@ export function TreeCanvas() {
       ref={containerRef}
       className="w-full h-full relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950"
       onWheel={handleWheel}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.1),transparent_70%)]" />
 
